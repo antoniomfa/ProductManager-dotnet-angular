@@ -1,0 +1,156 @@
+### Product Manager API - manual request collection
+### Open in VS Code with the REST Client extension, or in Visual Studio, and click "Send Request".
+### Start the API first:  cd src/ProductManager.Api && dotnet run
+
+@host = http://localhost:5186
+@contentType = application/json
+
+### Health check
+GET {{host}}/health
+
+### Categories - use one of these IDs when creating a product
+GET {{host}}/api/categories
+
+### ─────────────────────────────────────────────────────────────
+### 1. GET /api/products - first page
+GET {{host}}/api/products
+
+### 1a. Paged and sorted by stock, lowest first
+GET {{host}}/api/products?page=1&pageSize=5&sortBy=stock&sortDescending=false
+
+### 1b. Filtered by category and free text
+GET {{host}}/api/products?categoryId=1&search=aur
+
+### ─────────────────────────────────────────────────────────────
+### 2. POST /api/products - create. The 6-digit id comes back in the response.
+# @name createProduct
+POST {{host}}/api/products
+Content-Type: {{contentType}}
+
+{
+  "name": "Meridian 13 Ultrabook",
+  "description": "13-inch ultrabook, 16GB RAM, 512GB SSD.",
+  "price": 1149.00,
+  "initialStock": 12,
+  "lowStockThreshold": 4,
+  "categoryId": 2
+}
+
+@productId = {{createProduct.response.body.id}}
+
+### ─────────────────────────────────────────────────────────────
+### 3. GET /api/products/{id} - includes the stock movement history
+GET {{host}}/api/products/{{productId}}
+
+### ─────────────────────────────────────────────────────────────
+### 4. PUT /api/products/{id} - edit the details
+PUT {{host}}/api/products/{{productId}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Meridian 13 Ultrabook (2026)",
+  "description": "13-inch ultrabook, 32GB RAM, 1TB SSD.",
+  "price": 1349.00,
+  "lowStockThreshold": 5,
+  "categoryId": 2
+}
+
+### 4a. PUT with an absolute stock take - recorded as an Adjustment movement
+PUT {{host}}/api/products/{{productId}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Meridian 13 Ultrabook (2026)",
+  "description": "13-inch ultrabook, 32GB RAM, 1TB SSD.",
+  "price": 1349.00,
+  "lowStockThreshold": 5,
+  "categoryId": 2,
+  "stockQuantity": 20
+}
+
+### ─────────────────────────────────────────────────────────────
+### 7. POST add-to-stock - body is optional and only carries the audit reason
+POST {{host}}/api/products/{{productId}}/add-to-stock/8
+Content-Type: {{contentType}}
+
+{
+  "reason": "Delivery GRN-5512"
+}
+
+### 7a. add-to-stock with no body at all
+POST {{host}}/api/products/{{productId}}/add-to-stock/2
+
+### ─────────────────────────────────────────────────────────────
+### 6. POST decrement-stock
+POST {{host}}/api/products/{{productId}}/decrement-stock/5
+Content-Type: {{contentType}}
+
+{
+  "reason": "Customer order #4821"
+}
+
+### 6a. Decrement beyond what is held - expect 409 with availableStock and requestedQuantity
+POST {{host}}/api/products/{{productId}}/decrement-stock/99999
+
+### ─────────────────────────────────────────────────────────────
+### 8. GET /api/products/search?name= - partial, case-insensitive
+GET {{host}}/api/products/search?name=meridian
+
+### 8a. Lower case matches just the same
+GET {{host}}/api/products/search?name=LUMEN
+
+### 8b. No search term - expect 400
+GET {{host}}/api/products/search?name=
+
+### ─────────────────────────────────────────────────────────────
+### 9. GET /api/products/stock-level - inclusive range
+GET {{host}}/api/products/stock-level?min=0&max=5
+
+### 9a. Out of stock only
+GET {{host}}/api/products/stock-level?min=0&max=0
+
+### 9b. Open-ended upper bound
+GET {{host}}/api/products/stock-level?min=50
+
+### 9c. Minimum above maximum - expect 400
+GET {{host}}/api/products/stock-level?min=50&max=10
+
+### ─────────────────────────────────────────────────────────────
+### 5. DELETE /api/products/{id} - expect 204, then 404 on the follow-up read
+DELETE {{host}}/api/products/{{productId}}
+
+### 5a. Confirm it is gone
+GET {{host}}/api/products/{{productId}}
+
+### ─────────────────────────────────────────────────────────────
+### Error cases
+
+### Unknown product - expect 404
+GET {{host}}/api/products/999999
+
+### Invalid payload - expect 400 with one entry per bad field
+POST {{host}}/api/products
+Content-Type: {{contentType}}
+
+{
+  "name": "",
+  "price": -5,
+  "initialStock": -1,
+  "lowStockThreshold": -2,
+  "categoryId": 0
+}
+
+### Unknown category - expect 404
+POST {{host}}/api/products
+Content-Type: {{contentType}}
+
+{
+  "name": "Orphan Product",
+  "price": 10.00,
+  "initialStock": 1,
+  "lowStockThreshold": 1,
+  "categoryId": 9999
+}
+
+### Zero quantity on a stock move - expect 400
+POST {{host}}/api/products/100000/add-to-stock/0

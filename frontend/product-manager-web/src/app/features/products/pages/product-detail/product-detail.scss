@@ -1,0 +1,145 @@
+.breadcrumb {
+  margin-bottom: 0.75rem;
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--mat-sys-primary);
+    text-decoration: none;
+  }
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  h1 {
+    margin: 0;
+    font: var(--mat-sys-headline-medium);
+  }
+}
+
+.page-header__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(400px, 2fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.facts {
+  margin: 0;
+}
+
+.facts__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  dt {
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  dd {
+    margin: 0;
+    text-align: right;
+  }
+}
+
+.description {
+  margin: 1rem 0 0;
+  color: var(--mat-sys-on-surface-variant);
+  line-height: 1.6;
+}
+
+.history-table {
+  width: 100%;
+  display: block;
+  overflow-x: auto;
+}
+
+.history-empty,
+.loading-note {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.numeric {
+  text-align: right;
+}
+
+/* The sign carries the meaning as well as the colour. */
+.positive {
+  color: #1b5e20;
+  font-weight: 600;
+}
+
+.negative {
+  color: #b71c1c;
+  font-weight: 600;
+}
+
+.reason {
+  color: var(--mat-sys-on-surface-variant);
+  max-width: 32ch;
+}
+
+.mono {
+  font-family: ui-monospace, monospace;
+  font-size: 0.875em;
+}
+
+.not-found {
+  max-width: 480px;
+  margin: 3rem auto;
+  text-align: center;
+
+  h1 {
+    margin: 0.5rem 0 0.25rem;
+    font: var(--mat-sys-headline-small);
+  }
+}
+
+.not-found__icon {
+  font-size: 3rem;
+  width: 3rem;
+  height: 3rem;
+  color: var(--mat-sys-outline);
+}
+
+.not-found__hint {
+  margin: 0 0 1.25rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+@media (max-width: 1023px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,37 @@
+# ---------- .NET ----------
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+TestResults/
+[Cc]overage*/
+*.coverage
+*.trx
+
+# Local configuration overrides — may hold real connection strings or secrets.
+appsettings.Local.json
+appsettings.*.Local.json
+
+# ---------- Node / Angular ----------
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ---------- Editors ----------
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---------- Environment ----------
+.env
+.env.local
+.env.*.local

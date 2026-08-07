@@ -1,0 +1,155 @@
+@if (notFound()) {
+  <mat-card class="not-found">
+    <mat-card-content>
+      <mat-icon class="not-found__icon">search_off</mat-icon>
+      <h1 class="not-found__title">Product not found</h1>
+      <p class="not-found__hint">
+        Product {{ id() }} does not exist, or it has been deleted.
+      </p>
+      <a matButton="filled" routerLink="/products">
+        <mat-icon>arrow_back</mat-icon>
+        Back to catalogue
+      </a>
+    </mat-card-content>
+  </mat-card>
+} @else if (product(); as item) {
+  <nav class="breadcrumb">
+    <a routerLink="/products">
+      <mat-icon>arrow_back</mat-icon>
+      Catalogue
+    </a>
+  </nav>
+
+  <header class="page-header">
+    <div class="page-header__text">
+      <h1 class="page-header__title">{{ item.name }}</h1>
+      <p class="page-header__meta">
+        <span class="mono">#{{ item.id }}</span>
+        <span aria-hidden="true">·</span>
+        <span>{{ item.categoryName }}</span>
+      </p>
+    </div>
+
+    <div class="page-header__actions">
+      <button matButton (click)="openAddStock()">
+        <mat-icon>add_box</mat-icon>
+        Add stock
+      </button>
+      <button matButton (click)="openRemoveStock()" [disabled]="item.stockQuantity === 0">
+        <mat-icon>indeterminate_check_box</mat-icon>
+        Remove stock
+      </button>
+      <a matButton="filled" [routerLink]="['/products', item.id, 'edit']">
+        <mat-icon>edit</mat-icon>
+        Edit
+      </a>
+      <button matIconButton (click)="confirmDelete()" matTooltip="Delete product" aria-label="Delete product">
+        <mat-icon>delete</mat-icon>
+      </button>
+    </div>
+  </header>
+
+  <div class="detail-grid">
+    <mat-card class="summary-card">
+      <mat-card-content>
+        <dl class="facts">
+          <div class="facts__row">
+            <dt>Available stock</dt>
+            <dd>
+              <span class="stock-chip" [class]="'stock-chip--' + item.stockStatus">
+                <strong>{{ item.stockQuantity }}</strong>
+                {{ stockLabels[item.stockStatus] }}
+              </span>
+            </dd>
+          </div>
+
+          <div class="facts__row">
+            <dt>Price</dt>
+            <dd class="facts__value">{{ item.price | currency: 'EUR' }}</dd>
+          </div>
+
+          <div class="facts__row">
+            <dt>Low-stock threshold</dt>
+            <dd class="facts__value">{{ item.lowStockThreshold }}</dd>
+          </div>
+
+          <div class="facts__row">
+            <dt>Created</dt>
+            <dd class="facts__value">{{ item.createdAt | date: 'medium' }}</dd>
+          </div>
+
+          <div class="facts__row">
+            <dt>Last updated</dt>
+            <dd class="facts__value">{{ item.updatedAt | date: 'medium' }}</dd>
+          </div>
+        </dl>
+
+        @if (item.description) {
+          <mat-divider />
+          <p class="description">{{ item.description }}</p>
+        }
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card class="history-card">
+      <mat-card-header>
+        <mat-card-title>Stock history</mat-card-title>
+        <mat-card-subtitle>
+          Every change to this product's stock, most recent first
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        @if (item.stockMovements.length === 0) {
+          <p class="history-empty">No stock movements recorded yet.</p>
+        } @else {
+          <table mat-table [dataSource]="item.stockMovements" class="history-table">
+            <ng-container matColumnDef="occurredAt">
+              <th mat-header-cell *matHeaderCellDef>When</th>
+              <td mat-cell *matCellDef="let movement">
+                {{ movement.occurredAt | date: 'short' }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="type">
+              <th mat-header-cell *matHeaderCellDef>Type</th>
+              <td mat-cell *matCellDef="let movement">{{ movement.type }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="quantityChange">
+              <th mat-header-cell *matHeaderCellDef>Change</th>
+              <td
+                mat-cell
+                *matCellDef="let movement"
+                class="numeric"
+                [class.positive]="movement.quantityChange > 0"
+                [class.negative]="movement.quantityChange < 0"
+              >
+                {{ movement.quantityChange > 0 ? '+' : '' }}{{ movement.quantityChange }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="resultingStock">
+              <th mat-header-cell *matHeaderCellDef>Resulting</th>
+              <td mat-cell *matCellDef="let movement" class="numeric">
+                {{ movement.resultingStock }}
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="reason">
+              <th mat-header-cell *matHeaderCellDef>Reason</th>
+              <td mat-cell *matCellDef="let movement" class="reason">
+                {{ movement.reason ?? '—' }}
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="movementColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: movementColumns"></tr>
+          </table>
+        }
+      </mat-card-content>
+    </mat-card>
+  </div>
+} @else if (loading()) {
+  <p class="loading-note">Loading product…</p>
+}

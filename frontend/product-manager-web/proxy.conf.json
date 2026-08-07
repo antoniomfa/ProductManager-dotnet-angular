@@ -1,0 +1,9 @@
+{
+  "//": "Sends /api calls from the dev server to the .NET API.",
+  "/api": {
+    "target": "http://localhost:5186",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  }
+}

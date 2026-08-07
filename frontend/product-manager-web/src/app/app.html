@@ -1,0 +1,28 @@
+<mat-toolbar color="primary" class="app-toolbar">
+  <a routerLink="/products" class="app-toolbar__brand">
+    <mat-icon>inventory_2</mat-icon>
+    <span>Product Manager</span>
+  </a>
+
+  <span class="app-toolbar__spacer"></span>
+
+  <a matButton routerLink="/products">
+    <mat-icon>list</mat-icon>
+    Catalogue
+  </a>
+  <a matButton="filled" routerLink="/products/new">
+    <mat-icon>add</mat-icon>
+    New product
+  </a>
+</mat-toolbar>
+
+<!-- Always in the layout, so the page does not move when the bar appears. -->
+<div class="app-progress">
+  @if (isLoading()) {
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+  }
+</div>
+
+<main class="app-content">
+  <router-outlet />
+</main>
