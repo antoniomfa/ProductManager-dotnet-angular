@@ -1,6 +1,5 @@
 using FluentValidation;
 using FluentValidation.Results;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ProductManager.Application.Abstractions;
 using ProductManager.Application.Common;
@@ -17,22 +16,25 @@ public sealed class ProductService : IProductService
     /// <summary>Ceiling on search results, so a one-character query cannot return the whole catalogue.</summary>
     private const int SearchResultLimit = 100;
 
-    /// <summary>Escape character for LIKE patterns, so user input cannot act as a wildcard.</summary>
-    private const string LikeEscape = "\\";
-
     /// <summary>How many times a stock change is attempted before a concurrency conflict is reported.</summary>
     private const int MaxStockWriteAttempts = 3;
 
-    private readonly IApplicationDbContext _context;
+    private readonly IProductRepository _products;
+    private readonly ICategoryRepository _categories;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ProductService> _logger;
 
     public ProductService(
-        IApplicationDbContext context,
+        IProductRepository products,
+        ICategoryRepository categories,
+        IUnitOfWork unitOfWork,
         TimeProvider timeProvider,
         ILogger<ProductService> logger)
     {
-        _context = context;
+        _products = products;
+        _categories = categories;
+        _unitOfWork = unitOfWork;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -43,37 +45,14 @@ public sealed class ProductService : IProductService
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var products = _context.Products
-            .AsNoTracking()
-            .Include(product => product.Category)
-            .AsQueryable();
+        var page = await _products.GetPageAsync(query, cancellationToken);
 
-        if (query.CategoryId is { } categoryId)
-        {
-            products = products.Where(product => product.CategoryId == categoryId);
-        }
-
-        if (!string.IsNullOrWhiteSpace(query.Search))
-        {
-            var pattern = $"%{EscapeLikePattern(query.Search.Trim())}%";
-
-            products = products.Where(product => EF.Functions.Like(product.Name, pattern, LikeEscape));
-        }
-
-        // Counted before paging so the client learns the size of the full result set.
-        var totalCount = await products.CountAsync(cancellationToken);
-
-        var items = await ApplySort(products, query.SortBy, query.SortDescending)
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
-            .ToListAsync(cancellationToken);
-
-        return new PagedResult<ProductDto>(items.ToDtoList(), query.Page, query.PageSize, totalCount);
+        return page.Map(product => product.ToDto());
     }
 
     public async Task<ProductDetailDto> GetProductByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        var product = await FindWithMovementsAsync(id, cancellationToken)
+        var product = await _products.GetByIdWithMovementsAsync(id, cancellationToken)
             ?? throw new NotFoundException("Product", id);
 
         return product.ToDetailDto();
@@ -96,11 +75,11 @@ public sealed class ProductService : IProductService
             request.CategoryId,
             _timeProvider);
 
-        _context.Products.Add(product);
+        _products.Add(product);
 
         // The identifier is assigned by the database's sequence-backed column default, so it is
         // only known once this returns.
-        await _context.SaveChangesAsync(cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
             "Created product {ProductId} with initial stock {InitialStock}.",
@@ -118,7 +97,7 @@ public sealed class ProductService : IProductService
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var product = await FindWithMovementsAsync(id, cancellationToken)
+        var product = await _products.GetByIdWithMovementsAsync(id, cancellationToken)
             ?? throw new NotFoundException("Product", id);
 
         await EnsureCategoryExistsAsync(request.CategoryId, cancellationToken);
@@ -139,7 +118,9 @@ public sealed class ProductService : IProductService
                 _timeProvider);
         }
 
-        await SaveOrThrowConflictAsync(id, cancellationToken);
+        // A conflict is reported rather than retried: replaying an edit over someone else's would
+        // silently discard their change.
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Updated product {ProductId}.", id);
 
@@ -148,12 +129,12 @@ public sealed class ProductService : IProductService
 
     public async Task DeleteProductAsync(int id, CancellationToken cancellationToken = default)
     {
-        var product = await FindAsync(id, cancellationToken)
+        var product = await _products.GetByIdAsync(id, cancellationToken)
             ?? throw new NotFoundException("Product", id);
 
         product.SoftDelete(_timeProvider);
 
-        await SaveOrThrowConflictAsync(id, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Soft-deleted product {ProductId}.", id);
     }
@@ -195,15 +176,7 @@ public sealed class ProductService : IProductService
             throw BuildValidationException(nameof(name), "A search term is required.");
         }
 
-        var pattern = $"%{EscapeLikePattern(name.Trim())}%";
-
-        var matches = await _context.Products
-            .AsNoTracking()
-            .Include(product => product.Category)
-            .Where(product => EF.Functions.Like(product.Name, pattern, LikeEscape))
-            .OrderBy(product => product.Name)
-            .Take(SearchResultLimit)
-            .ToListAsync(cancellationToken);
+        var matches = await _products.SearchByNameAsync(name, SearchResultLimit, cancellationToken);
 
         return matches.ToDtoList();
     }
@@ -228,41 +201,10 @@ public sealed class ProductService : IProductService
             throw BuildValidationException("min", "Minimum stock level cannot be greater than the maximum.");
         }
 
-        var products = _context.Products
-            .AsNoTracking()
-            .Include(product => product.Category)
-            .AsQueryable();
-
-        if (minimum is { } lowerBound)
-        {
-            products = products.Where(product => product.StockQuantity >= lowerBound);
-        }
-
-        if (maximum is { } upperBound)
-        {
-            products = products.Where(product => product.StockQuantity <= upperBound);
-        }
-
-        var matches = await products
-            .OrderBy(product => product.StockQuantity)
-            .ThenBy(product => product.Name)
-            .ToListAsync(cancellationToken);
+        var matches = await _products.GetByStockLevelAsync(minimum, maximum, cancellationToken);
 
         return matches.ToDtoList();
     }
-
-    /// <summary>Loads a tracked product, or null when it does not exist or was deleted.</summary>
-    private Task<Product?> FindAsync(int id, CancellationToken cancellationToken) =>
-        _context.Products
-            .Include(product => product.Category)
-            .FirstOrDefaultAsync(product => product.Id == id, cancellationToken);
-
-    /// <summary>As <see cref="FindAsync"/>, but also loads the stock movement history.</summary>
-    private Task<Product?> FindWithMovementsAsync(int id, CancellationToken cancellationToken) =>
-        _context.Products
-            .Include(product => product.Category)
-            .Include(product => product.StockMovements)
-            .FirstOrDefaultAsync(product => product.Id == id, cancellationToken);
 
     /// <summary>
     /// Applies a stock change and saves it, retrying when another request changed the product in
@@ -279,7 +221,7 @@ public sealed class ProductService : IProductService
     {
         for (var attempt = 1; ; attempt++)
         {
-            var product = await FindAsync(id, cancellationToken)
+            var product = await _products.GetByIdAsync(id, cancellationToken)
                 ?? throw new NotFoundException("Product", id);
 
             var previousStock = product.StockQuantity;
@@ -287,47 +229,25 @@ public sealed class ProductService : IProductService
 
             try
             {
-                await _context.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 return BuildStockResult(product, previousStock);
             }
-            catch (DbUpdateConcurrencyException) when (attempt < MaxStockWriteAttempts)
+            catch (ConcurrencyConflictException) when (attempt < MaxStockWriteAttempts)
             {
                 _logger.LogInformation(
                     "Stock change on product {ProductId} conflicted with another request; retrying (attempt {Attempt}).",
                     id,
                     attempt);
 
-                _context.ChangeTracker.Clear();
+                _unitOfWork.DiscardChanges();
             }
-            catch (DbUpdateConcurrencyException exception)
-            {
-                throw new ConcurrencyConflictException("Product", id, exception);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Saves an edit, reporting a conflict rather than overwriting a change made by another request.
-    /// </summary>
-    private async Task SaveOrThrowConflictAsync(int id, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await _context.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException exception)
-        {
-            throw new ConcurrencyConflictException("Product", id, exception);
         }
     }
 
     private async Task EnsureCategoryExistsAsync(int categoryId, CancellationToken cancellationToken)
     {
-        var exists = await _context.Categories
-            .AnyAsync(category => category.Id == categoryId, cancellationToken);
-
-        if (!exists)
+        if (!await _categories.ExistsAsync(categoryId, cancellationToken))
         {
             throw new NotFoundException("Category", categoryId);
         }
@@ -341,42 +261,6 @@ public sealed class ProductService : IProductService
         NewStock = product.StockQuantity,
         StockStatus = product.StockStatus,
     };
-
-    private static IQueryable<Product> ApplySort(IQueryable<Product> products, string? sortBy, bool descending) =>
-        (sortBy?.Trim().ToUpperInvariant()) switch
-        {
-            "PRICE" => descending
-                ? products.OrderByDescending(product => product.Price).ThenBy(product => product.Id)
-                : products.OrderBy(product => product.Price).ThenBy(product => product.Id),
-
-            "STOCK" or "STOCKQUANTITY" => descending
-                ? products.OrderByDescending(product => product.StockQuantity).ThenBy(product => product.Id)
-                : products.OrderBy(product => product.StockQuantity).ThenBy(product => product.Id),
-
-            "CREATED" or "CREATEDAT" => descending
-                ? products.OrderByDescending(product => product.CreatedAt).ThenBy(product => product.Id)
-                : products.OrderBy(product => product.CreatedAt).ThenBy(product => product.Id),
-
-            "ID" => descending
-                ? products.OrderByDescending(product => product.Id)
-                : products.OrderBy(product => product.Id),
-
-            // Name is the default, and every branch adds Id as a tie-break so paging stays
-            // stable when several rows share a sort value.
-            _ => descending
-                ? products.OrderByDescending(product => product.Name).ThenBy(product => product.Id)
-                : products.OrderBy(product => product.Name).ThenBy(product => product.Id),
-        };
-
-    /// <summary>
-    /// Neutralises LIKE characters in user input, so a search for "50%" matches the literal text
-    /// rather than turning into a wildcard.
-    /// </summary>
-    private static string EscapeLikePattern(string value) => value
-        .Replace(LikeEscape, LikeEscape + LikeEscape, StringComparison.Ordinal)
-        .Replace("%", LikeEscape + "%", StringComparison.Ordinal)
-        .Replace("_", LikeEscape + "_", StringComparison.Ordinal)
-        .Replace("[", LikeEscape + "[", StringComparison.Ordinal);
 
     private static void RequirePositiveQuantity(int quantity)
     {

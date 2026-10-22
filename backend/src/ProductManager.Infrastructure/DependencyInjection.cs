@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ProductManager.Application.Abstractions;
 using ProductManager.Infrastructure.Persistence;
+using ProductManager.Infrastructure.Persistence.Repositories;
 using ProductManager.Infrastructure.Seeding;
 
 namespace ProductManager.Infrastructure;
@@ -36,10 +37,10 @@ public static class DependencyInjection
                     errorNumbersToAdd: null);
             }));
 
-        // The application layer talks to the interface; this is the only place the concrete
-        // context is named.
-        services.AddScoped<IApplicationDbContext>(provider =>
-            provider.GetRequiredService<ProductManagerDbContext>());
+        // The application layer only sees these interfaces; EF Core stays inside this project.
+        services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddScoped<IDatabaseInitializer, DatabaseInitializer>();
 

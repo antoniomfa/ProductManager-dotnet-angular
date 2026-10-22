@@ -19,7 +19,6 @@ public static class DependencyInjection
 
         services.AddValidatorsFromAssemblyContaining<CreateProductRequestValidator>(ServiceLifetime.Singleton);
 
-
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<ICategoryService, CategoryService>();
 

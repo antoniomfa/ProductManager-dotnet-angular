@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using ProductManager.Application.Abstractions;
 using ProductManager.Domain.Entities;
 using ProductManager.Infrastructure.Persistence.Configurations;
 
@@ -8,7 +7,7 @@ namespace ProductManager.Infrastructure.Persistence;
 /// <summary>
 /// EF Core context for the product catalogue, built code-first by migrations.
 /// </summary>
-public class ProductManagerDbContext : DbContext, IApplicationDbContext
+public class ProductManagerDbContext : DbContext
 {
     /// <summary>Name of the sequence that hands out 6-digit product identifiers.</summary>
     public const string ProductIdSequenceName = "ProductIdSequence";
