@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using ProductManager.Application.Categories;
 using ProductManager.Application.Products.Dtos;
 using ProductManager.IntegrationTests.Support;

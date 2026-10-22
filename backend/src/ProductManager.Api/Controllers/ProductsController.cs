@@ -106,9 +106,11 @@ public sealed class ProductsController : ControllerBase
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <response code="204">The product was deleted.</response>
     /// <response code="404">No product exists with this identifier.</response>
+    /// <response code="409">The product was changed concurrently by another request.</response>
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> DeleteProduct(int id, CancellationToken cancellationToken)
     {
         await _productService.DeleteProductAsync(id, cancellationToken);
@@ -124,7 +126,9 @@ public sealed class ProductsController : ControllerBase
     /// <response code="200">The stock level before and after the change.</response>
     /// <response code="400">The quantity was zero or negative.</response>
     /// <response code="404">No product exists with this identifier.</response>
-    /// <response code="409">The product does not hold enough stock to satisfy the request.</response>
+    /// <response code="409">
+    /// The product does not hold enough stock, or kept being changed concurrently by other requests.
+    /// </response>
     [HttpPost("{id:int}/decrement-stock/{quantity:int}")]
     [ProducesResponseType(typeof(StockOperationResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -149,10 +153,12 @@ public sealed class ProductsController : ControllerBase
     /// <response code="200">The stock level before and after the change.</response>
     /// <response code="400">The quantity was zero or negative.</response>
     /// <response code="404">No product exists with this identifier.</response>
+    /// <response code="409">The product kept being changed concurrently by other requests.</response>
     [HttpPost("{id:int}/add-to-stock/{quantity:int}")]
     [ProducesResponseType(typeof(StockOperationResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<StockOperationResult>> AddToStock(
         int id,
         int quantity,

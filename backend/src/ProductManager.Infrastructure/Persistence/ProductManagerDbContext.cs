@@ -13,6 +13,9 @@ public class ProductManagerDbContext : DbContext, IApplicationDbContext
     /// <summary>Name of the sequence that hands out 6-digit product identifiers.</summary>
     public const string ProductIdSequenceName = "ProductIdSequence";
 
+    /// <summary>Name of the shadow property used as the optimistic concurrency token.</summary>
+    public const string RowVersionProperty = "RowVersion";
+
     public ProductManagerDbContext(DbContextOptions<ProductManagerDbContext> options)
         : base(options)
     {

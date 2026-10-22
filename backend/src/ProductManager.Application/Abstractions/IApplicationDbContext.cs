@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using ProductManager.Domain.Entities;
 
 namespace ProductManager.Application.Abstractions;
@@ -13,7 +14,7 @@ namespace ProductManager.Application.Abstractions;
 /// <para>
 /// This interface exists only so the application layer does not have to reference the
 /// Infrastructure project, which would point the dependency the wrong way. It exposes the sets and
-/// nothing else — no provider, no connection string, no configuration.
+/// the change tracker, but no provider, connection string or configuration.
 /// </para>
 /// </remarks>
 public interface IApplicationDbContext
@@ -23,6 +24,9 @@ public interface IApplicationDbContext
     DbSet<Category> Categories { get; }
 
     DbSet<StockMovement> StockMovements { get; }
+
+    /// <summary>Used to discard stale tracked entities before retrying after a concurrency conflict.</summary>
+    ChangeTracker ChangeTracker { get; }
 
     /// <summary>Writes all pending changes in one transaction.</summary>
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

@@ -109,7 +109,12 @@ describe('ProductApiService', () => {
 
   it('updates a product', () => {
     service
-      .updateProduct(100001, { name: 'Renamed', price: 199.99, lowStockThreshold: 5, categoryId: 1 })
+      .updateProduct(100001, {
+        name: 'Renamed',
+        price: 199.99,
+        lowStockThreshold: 5,
+        categoryId: 1,
+      })
       .subscribe();
 
     const request = httpMock.expectOne('/api/products/100001');

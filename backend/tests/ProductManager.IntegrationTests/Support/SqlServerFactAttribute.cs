@@ -43,9 +43,9 @@ internal static class SqlServerAvailability
         "Server=(localdb)\\MSSQLLocalDB;Database=master;Trusted_Connection=True;TrustServerCertificate=True;Connect Timeout=5";
 
     public const string SkipReason =
-        "Skipped: no SQL Server reachable at (localdb)\\MSSQLLocalDB. Start LocalDB, or run the docker-compose SQL Server and set ConnectionStrings__ProductManagerDatabase.";
+        "Skipped: no SQL Server reachable at (localdb)\\MSSQLLocalDB. Install or start LocalDB (sqllocaldb start MSSQLLocalDB).";
 
-    private static readonly Lazy<bool> Probe = new(() =>
+    private static readonly Lazy<bool> _probe = new(() =>
     {
         try
         {
@@ -63,7 +63,7 @@ internal static class SqlServerAvailability
         }
     });
 
-    public static bool IsAvailable => Probe.Value;
+    public static bool IsAvailable => _probe.Value;
 
     /// <summary>Connection string for a throwaway database, named uniquely so parallel runs cannot clash.</summary>
     public static string TestDatabaseConnectionString(string databaseName) =>

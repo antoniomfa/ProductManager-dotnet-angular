@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
 using ProductManager.Application.Products.Dtos;
 
 namespace ProductManager.IntegrationTests.Support;
@@ -25,6 +26,9 @@ public abstract class ApiTestBase : IClassFixture<ProductManagerApiFactory>
     }
 
     protected HttpClient Client => _client ??= _factory.CreateClient();
+
+    /// <summary>A DI scope on the running API, for tests that need to reach the database directly.</summary>
+    protected IServiceScope CreateScope() => _factory.Services.CreateScope();
 
     protected static Task<T?> ReadAsync<T>(HttpResponseMessage response)
     {

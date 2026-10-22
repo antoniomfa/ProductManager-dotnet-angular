@@ -23,24 +23,24 @@ export class ProductApiService {
     let params = new HttpParams();
 
     // Only send the options that were given, so the API applies its own defaults.
-    if (query.page !== undefined)
+    if (query.page !== undefined) {
       params = params.set('page', query.page);
-
-    if (query.pageSize !== undefined)
+    }
+    if (query.pageSize !== undefined) {
       params = params.set('pageSize', query.pageSize);
-
-    if (query.sortBy)
+    }
+    if (query.sortBy) {
       params = params.set('sortBy', query.sortBy);
-
+    }
     if (query.sortDescending !== undefined) {
       params = params.set('sortDescending', query.sortDescending);
     }
-
-    if (query.categoryId !== undefined)
+    if (query.categoryId !== undefined) {
       params = params.set('categoryId', query.categoryId);
-
-    if (query.search)
+    }
+    if (query.search) {
       params = params.set('search', query.search);
+    }
 
     return this.http.get<PagedResult<Product>>(this.baseUrl, { params });
   }
@@ -67,24 +67,23 @@ export class ProductApiService {
 
   /** POST /api/products/{id}/add-to-stock/{quantity} */
   addToStock(id: number, quantity: number, reason?: string): Observable<StockOperationResult> {
-    return this.http.post<StockOperationResult>(
-      `${this.baseUrl}/${id}/add-to-stock/${quantity}`,
-      { reason }
-    );
+    return this.http.post<StockOperationResult>(`${this.baseUrl}/${id}/add-to-stock/${quantity}`, {
+      reason,
+    });
   }
 
   /** POST /api/products/{id}/decrement-stock/{quantity} */
   decrementStock(id: number, quantity: number, reason?: string): Observable<StockOperationResult> {
     return this.http.post<StockOperationResult>(
       `${this.baseUrl}/${id}/decrement-stock/${quantity}`,
-      { reason }
+      { reason },
     );
   }
 
   /** GET /api/products/search?name= */
   searchByName(name: string): Observable<Product[]> {
     return this.http.get<Product[]>(`${this.baseUrl}/search`, {
-      params: new HttpParams().set('name', name)
+      params: new HttpParams().set('name', name),
     });
   }
 
@@ -92,11 +91,12 @@ export class ProductApiService {
   getByStockLevel(min?: number, max?: number): Observable<Product[]> {
     let params = new HttpParams();
 
-    if (min !== undefined) 
+    if (min !== undefined) {
       params = params.set('min', min);
-
-    if (max !== undefined) 
+    }
+    if (max !== undefined) {
       params = params.set('max', max);
+    }
 
     return this.http.get<Product[]>(`${this.baseUrl}/stock-level`, { params });
   }

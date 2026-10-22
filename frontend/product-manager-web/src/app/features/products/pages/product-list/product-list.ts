@@ -94,7 +94,6 @@ export class ProductList implements OnInit {
 
   constructor() {
     // Debounced so a request is not sent on every keystroke.
-    // takeUntilDestroyed needs the constructor unless you pass it a DestroyRef.
     this.filters.valueChanges.pipe(debounceTime(400), takeUntilDestroyed()).subscribe(() => {
       this.page.set(1);
       void this.load();

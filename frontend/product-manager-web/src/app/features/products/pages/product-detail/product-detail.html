@@ -3,9 +3,7 @@
     <mat-card-content>
       <mat-icon class="not-found__icon">search_off</mat-icon>
       <h1 class="not-found__title">Product not found</h1>
-      <p class="not-found__hint">
-        Product {{ id() }} does not exist, or it has been deleted.
-      </p>
+      <p class="not-found__hint">Product {{ id() }} does not exist, or it has been deleted.</p>
       <a matButton="filled" routerLink="/products">
         <mat-icon>arrow_back</mat-icon>
         Back to catalogue
@@ -43,7 +41,12 @@
         <mat-icon>edit</mat-icon>
         Edit
       </a>
-      <button matIconButton (click)="confirmDelete()" matTooltip="Delete product" aria-label="Delete product">
+      <button
+        matIconButton
+        (click)="confirmDelete()"
+        matTooltip="Delete product"
+        aria-label="Delete product"
+      >
         <mat-icon>delete</mat-icon>
       </button>
     </div>

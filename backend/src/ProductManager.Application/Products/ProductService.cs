@@ -20,6 +20,9 @@ public sealed class ProductService : IProductService
     /// <summary>Escape character for LIKE patterns, so user input cannot act as a wildcard.</summary>
     private const string LikeEscape = "\\";
 
+    /// <summary>How many times a stock change is attempted before a concurrency conflict is reported.</summary>
+    private const int MaxStockWriteAttempts = 3;
+
     private readonly IApplicationDbContext _context;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<ProductService> _logger;
@@ -136,7 +139,7 @@ public sealed class ProductService : IProductService
                 _timeProvider);
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await SaveOrThrowConflictAsync(id, cancellationToken);
 
         _logger.LogInformation("Updated product {ProductId}.", id);
 
@@ -150,12 +153,12 @@ public sealed class ProductService : IProductService
 
         product.SoftDelete(_timeProvider);
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await SaveOrThrowConflictAsync(id, cancellationToken);
 
         _logger.LogInformation("Soft-deleted product {ProductId}.", id);
     }
 
-    public async Task<StockOperationResult> AddToStockAsync(
+    public Task<StockOperationResult> AddToStockAsync(
         int id,
         int quantity,
         string? reason = null,
@@ -163,18 +166,13 @@ public sealed class ProductService : IProductService
     {
         RequirePositiveQuantity(quantity);
 
-        var product = await FindAsync(id, cancellationToken)
-            ?? throw new NotFoundException("Product", id);
-
-        var previousStock = product.StockQuantity;
-        product.AddStock(quantity, reason, _timeProvider);
-
-        await _context.SaveChangesAsync(cancellationToken);
-
-        return BuildStockResult(product, previousStock);
+        return ChangeStockAsync(
+            id,
+            product => product.AddStock(quantity, reason, _timeProvider),
+            cancellationToken);
     }
 
-    public async Task<StockOperationResult> DecrementStockAsync(
+    public Task<StockOperationResult> DecrementStockAsync(
         int id,
         int quantity,
         string? reason = null,
@@ -182,15 +180,10 @@ public sealed class ProductService : IProductService
     {
         RequirePositiveQuantity(quantity);
 
-        var product = await FindAsync(id, cancellationToken)
-            ?? throw new NotFoundException("Product", id);
-
-        var previousStock = product.StockQuantity;
-        product.RemoveStock(quantity, reason, _timeProvider);
-
-        await _context.SaveChangesAsync(cancellationToken);
-
-        return BuildStockResult(product, previousStock);
+        return ChangeStockAsync(
+            id,
+            product => product.RemoveStock(quantity, reason, _timeProvider),
+            cancellationToken);
     }
 
     public async Task<IReadOnlyList<ProductDto>> SearchByNameAsync(
@@ -270,6 +263,64 @@ public sealed class ProductService : IProductService
             .Include(product => product.Category)
             .Include(product => product.StockMovements)
             .FirstOrDefaultAsync(product => product.Id == id, cancellationToken);
+
+    /// <summary>
+    /// Applies a stock change and saves it, retrying when another request changed the product in
+    /// between.
+    /// </summary>
+    /// <remarks>
+    /// A stock change is a delta, so replaying it on freshly read figures is safe: the domain
+    /// re-checks the rules (for example, enough units on hand) against the current level each time.
+    /// </remarks>
+    private async Task<StockOperationResult> ChangeStockAsync(
+        int id,
+        Action<Product> change,
+        CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            var product = await FindAsync(id, cancellationToken)
+                ?? throw new NotFoundException("Product", id);
+
+            var previousStock = product.StockQuantity;
+            change(product);
+
+            try
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return BuildStockResult(product, previousStock);
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < MaxStockWriteAttempts)
+            {
+                _logger.LogInformation(
+                    "Stock change on product {ProductId} conflicted with another request; retrying (attempt {Attempt}).",
+                    id,
+                    attempt);
+
+                _context.ChangeTracker.Clear();
+            }
+            catch (DbUpdateConcurrencyException exception)
+            {
+                throw new ConcurrencyConflictException("Product", id, exception);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Saves an edit, reporting a conflict rather than overwriting a change made by another request.
+    /// </summary>
+    private async Task SaveOrThrowConflictAsync(int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new ConcurrencyConflictException("Product", id, exception);
+        }
+    }
 
     private async Task EnsureCategoryExistsAsync(int categoryId, CancellationToken cancellationToken)
     {

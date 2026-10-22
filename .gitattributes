@@ -1,0 +1,7 @@
+# Normalise every text file to LF, regardless of the contributor's OS or core.autocrlf setting.
+* text=auto eol=lf
+
+*.sln text eol=crlf
+
+*.ico binary
+*.png binary

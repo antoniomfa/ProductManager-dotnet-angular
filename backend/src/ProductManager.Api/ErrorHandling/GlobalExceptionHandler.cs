@@ -8,8 +8,7 @@ using ProductManager.Domain.Exceptions;
 namespace ProductManager.Api.ErrorHandling;
 
 /// <summary>
-/// Translates every unhandled exception into an RFC 7807 problem document.
-/// I decided to use this exception handler I've used previously in other of projects as it works as intended.
+/// Translates every unhandled exception into an RFC 9457 problem document.
 /// </summary>
 /// <remarks>
 /// Centralising this is what lets controllers stay free of try/catch: a service throws the
@@ -80,6 +79,13 @@ internal sealed class GlobalExceptionHandler : IExceptionHandler
                     HttpStatusCode.NotFound,
                     "Resource not found",
                     notFound.Message);
+                break;
+
+            case ConcurrencyConflictException conflict:
+                problemDetails = Problem(
+                    HttpStatusCode.Conflict,
+                    "Concurrent update",
+                    conflict.Message);
                 break;
 
             case InsufficientStockException insufficientStock:

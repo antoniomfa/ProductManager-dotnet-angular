@@ -14,7 +14,7 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
   return next(request).pipe(
     catchError((error: HttpErrorResponse) => {
       notifications.error(describeHttpError(error));
-      
+
       return throwError(() => error);
     }),
   );

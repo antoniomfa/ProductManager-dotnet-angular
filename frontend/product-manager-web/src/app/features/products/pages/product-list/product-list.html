@@ -56,9 +56,7 @@
     </ng-container>
 
     <ng-container matColumnDef="name">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header="name" [disabled]="!isPaged()">
-        Name
-      </th>
+      <th mat-header-cell *matHeaderCellDef mat-sort-header="name" [disabled]="!isPaged()">Name</th>
       <td mat-cell *matCellDef="let product">
         <a [routerLink]="['/products', product.id]" class="product-link">{{ product.name }}</a>
         @if (product.description) {

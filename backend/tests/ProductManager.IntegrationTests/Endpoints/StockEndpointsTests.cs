@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using ProductManager.Application.Products.Dtos;
 using ProductManager.Domain.Enums;
 using ProductManager.IntegrationTests.Support;

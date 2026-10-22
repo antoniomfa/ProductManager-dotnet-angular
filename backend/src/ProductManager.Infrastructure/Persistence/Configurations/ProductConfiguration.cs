@@ -52,6 +52,12 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(product => product.CreatedAt).IsRequired();
         builder.Property(product => product.UpdatedAt).IsRequired();
 
+        // Optimistic concurrency token. Every UPDATE checks it, so two instances that read the same
+        // stock level cannot both write over it. Kept as a shadow property because it is a
+        // persistence concern the domain model has no use for.
+        builder.Property<byte[]>(ProductManagerDbContext.RowVersionProperty)
+            .IsRowVersion();
+
         builder.HasIndex(product => product.Name);
         builder.HasIndex(product => product.StockQuantity);
         builder.HasIndex(product => new { product.IsDeleted, product.CategoryId });

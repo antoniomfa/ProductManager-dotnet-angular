@@ -7,8 +7,8 @@ A product catalogue with a **.NET 9** REST API and an **Angular 22** web app.
 | Tool | Version |
 | --- | --- |
 | .NET SDK | 9.0 |
-| Node.js | 20.19+ 
-| SQL Server | LocalDB 
+| Node.js | 20.19+ |
+| SQL Server | LocalDB |
 
 ## Run it
 
@@ -38,7 +38,7 @@ The first time the API starts it creates the database and fills it with 6 catego
 
 ```bash
 cd backend
-dotnet test          # 94 tests
+dotnet test          # 97 tests
 ```
 
 ```bash
@@ -46,7 +46,16 @@ cd frontend/product-manager-web
 npm test             # 25 tests
 ```
 
-The backend tests need SQL Server. 
+The backend tests need SQL Server.
+
+## Formatting
+
+Both halves follow the root `.editorconfig`. Check before committing:
+
+```bash
+cd backend && dotnet format --verify-no-changes
+cd frontend/product-manager-web && npm run format:check   # npm run format to fix
+```
 
 ## The endpoints
 
@@ -72,6 +81,15 @@ the default value of the `Id` column.
 
 This matters because the ID must stay unique even if several copies of the API run at once.
 Anything that counts inside one API process would hand out the same number twice. The database is the one thing every copy shares, and it never gives the same value to two callers.
+
+## Concurrent stock changes
+
+Each product row carries a `rowversion` concurrency token. If two requests read the same stock
+level and both try to save, the second save is rejected instead of overwriting the first.
+
+- `add-to-stock` and `decrement-stock` reload the product and reapply the change, up to 3 times.
+  Stock can never be oversold, and no addition is lost.
+- `PUT` and `DELETE` return `409 Conflict` rather than silently overwriting someone else's change.
 
 ## The structure
 
