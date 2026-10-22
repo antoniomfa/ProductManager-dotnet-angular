@@ -1,5 +1,5 @@
 using System.Text.Json.Serialization;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using ProductManager.Api.Configuration;
 using ProductManager.Api.ErrorHandling;
 using ProductManager.Api.Filters;

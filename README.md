@@ -1,12 +1,12 @@
 # Product Manager
 
-A product catalogue with a **.NET 9** REST API and an **Angular 22** web app.
+A product catalogue with a **.NET 10 (LTS)** REST API and an **Angular 22** web app.
 
 ## What's needed
 
 | Tool | Version |
 | --- | --- |
-| .NET SDK | 9.0 |
+| .NET SDK | 10.0 |
 | Node.js | 20.19+ |
 | SQL Server | LocalDB |
 
@@ -38,7 +38,7 @@ The first time the API starts it creates the database and fills it with 6 catego
 
 ```bash
 cd backend
-dotnet test          # 97 tests
+dotnet test          # 113 tests
 ```
 
 ```bash
@@ -97,8 +97,8 @@ level and both try to save, the second save is rejected instead of overwriting t
 backend/
   src/
     ProductManager.Domain          business rules, no dependencies
-    ProductManager.Application     use cases, DTOs, validation
-    ProductManager.Infrastructure  database, EF Core, migrations
+    ProductManager.Application     use cases, DTOs, validation, repository interfaces
+    ProductManager.Infrastructure  EF Core, repositories, migrations, seeding
     ProductManager.Api             controllers, error handling, Swagger
   tests/                           unit and integration tests
 
